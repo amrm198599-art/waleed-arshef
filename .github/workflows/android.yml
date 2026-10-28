@@ -17,8 +17,9 @@ jobs:
           java-version: 17
       - name: Prepare web app
         run: |
+          for z in ./*.zip; do unzip -o "$z" -d unz; done
           mkdir www
-          cp index.html www/index.html
+          cp "$(find unz -name index.html | head -1)" www/index.html
       - name: Create Android project
         run: |
           npm init -y
