@@ -30,9 +30,15 @@ jobs:
           npx cap sync android
       - name: Generate app icon
         run: |
-          mkdir -p assets
-          cp icon-for-apk.png assets/icon.png
-          npx @capacitor/assets@3 generate --android --iconBackgroundColor '#0A84FF' --iconBackgroundColorDark '#0A84FF'
+          sudo apt-get update && sudo apt-get install -y imagemagick
+          RES=android/app/src/main/res
+          rm -f $RES/mipmap-anydpi-v26/ic_launcher.xml $RES/mipmap-anydpi-v26/ic_launcher_round.xml
+          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            name=${d%%:*}; size=${d##*:}
+            convert icon-for-apk.png -resize ${size}x${size} $RES/mipmap-$name/ic_launcher.png
+            convert icon-for-apk.png -resize ${size}x${size} $RES/mipmap-$name/ic_launcher_round.png
+            convert icon-for-apk.png -resize ${size}x${size} $RES/mipmap-$name/ic_launcher_foreground.png
+          done
       - name: Build APK
         working-directory: android
         run: |
