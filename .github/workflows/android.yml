@@ -1,4 +1,3 @@
-هذا الملف كامل، انسخه وحطه مكان .github/workflows/android.yml:
 name: Build Android APK
 on:
   workflow_dispatch:
@@ -34,7 +33,7 @@ jobs:
           mkdir -p assets
           cp icon-for-apk.png assets/icon.png
           npx @capacitor/assets@3 generate --android --iconBackgroundColor '#0A84FF' --iconBackgroundColorDark '#0A84FF'
-      - name: Build APK (temporary debug key)
+      - name: Build APK
         working-directory: android
         run: |
           chmod +x gradlew
@@ -43,8 +42,3 @@ jobs:
         with:
           name: arshif-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-ملاحظات:
-سطر sed: في الصورة كان مقطوع من الآخر، فكتبته بناءً على الشكل الظاهر (يضيف صلاحية الكاميرا في AndroidManifest.xml). لو الأصلي عندك مختلف، استخدم بتاعك الأصلي مكانه.
-الأيقونة: الصورة لازم تفضل في جذر المستودع باسم icon-for-apk.png، وأفضل مقاس لها 1024×1024.
-الخلفية الزرقاء: #0A84FF لون تقريبي من الصورة. لو عايز لون أدق، ابعتلي الكود بتاعه أو عدّله بنفسك.
-ترتيب الخطوات: خطوة الأيقونة لازم تيجي بعد cap add android وقبل assembleDebug، وده اللي عملته.
