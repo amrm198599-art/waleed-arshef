@@ -20,6 +20,12 @@ jobs:
           for z in ./*.zip; do unzip -o "$z" -d unz; done
           mkdir www
           cp "$(find unz -name index.html | head -1)" www/index.html
+          ICON="$(find unz -iname app-icon.png | head -1)"
+          if [ -z "$ICON" ] && [ -f icon-for-apk.png ]; then ICON=icon-for-apk.png; fi
+          if [ -z "$ICON" ]; then echo "ERROR: app-icon.png not found in zip"; exit 1; fi
+          cp "$ICON" www/app-icon.png
+          cp "$ICON" /tmp/app-icon.png
+          echo "Using icon: $ICON"
       - name: Create Android project
         run: |
           npm init -y
@@ -35,10 +41,11 @@ jobs:
           rm -f $RES/mipmap-anydpi-v26/ic_launcher.xml $RES/mipmap-anydpi-v26/ic_launcher_round.xml
           for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
             name=${d%%:*}; size=${d##*:}
-            convert icon-for-apk.png -resize ${size}x${size} $RES/mipmap-$name/ic_launcher.png
-            convert icon-for-apk.png -resize ${size}x${size} $RES/mipmap-$name/ic_launcher_round.png
-            convert icon-for-apk.png -resize ${size}x${size} $RES/mipmap-$name/ic_launcher_foreground.png
+            convert /tmp/app-icon.png -resize ${size}x${size} $RES/mipmap-$name/ic_launcher.png
+            convert /tmp/app-icon.png -resize ${size}x${size} $RES/mipmap-$name/ic_launcher_round.png
+            convert /tmp/app-icon.png -resize ${size}x${size} $RES/mipmap-$name/ic_launcher_foreground.png
           done
+          ls -la $RES/mipmap-xxxhdpi
       - name: Build APK
         working-directory: android
         run: |
