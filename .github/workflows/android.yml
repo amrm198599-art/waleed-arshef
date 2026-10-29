@@ -39,9 +39,123 @@ jobs:
           npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/app@6
           npx cap init "Arshif Waleed" com.waleed.arshef --web-dir=www
           node -e "const f='capacitor.config.json';const c=require('./'+f);c.plugins={CapacitorHttp:{enabled:true}};require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
-          cat capacitor.config.json
           npx cap add android
           sed -i 's#<application#<uses-permission android:name="android.permission.CAMERA" />\n    <application#' android/app/src/main/AndroidManifest.xml
+      - name: Add share receiver (WhatsApp and other apps)
+        run: |
+          D=android/app/src/main/java/com/waleed/arshef
+          ls $D
+          cat > $D/ShareInPlugin.java <<'EOF'
+          package com.waleed.arshef;
+
+          import android.content.Intent;
+          import android.net.Uri;
+          import com.getcapacitor.JSArray;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+          import java.io.File;
+          import java.io.FileOutputStream;
+          import java.io.InputStream;
+          import java.util.ArrayList;
+
+          @CapacitorPlugin(name = "ShareIn")
+          public class ShareInPlugin extends Plugin {
+
+            @SuppressWarnings("deprecation")
+            private ArrayList<Uri> collect(Intent intent) {
+              ArrayList<Uri> list = new ArrayList<>();
+              if (intent == null) return list;
+              String a = intent.getAction();
+              if (Intent.ACTION_SEND.equals(a)) {
+                Uri u = (Uri) intent.getParcelableExtra(Intent.EXTRA_STREAM);
+                if (u != null) list.add(u);
+              } else if (Intent.ACTION_SEND_MULTIPLE.equals(a)) {
+                ArrayList<Uri> l = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+                if (l != null) list.addAll(l);
+              }
+              return list;
+            }
+
+            @PluginMethod
+            public void getShared(PluginCall call) {
+              JSArray files = new JSArray();
+              try {
+                Intent intent = getActivity().getIntent();
+                ArrayList<Uri> uris = collect(intent);
+                if (!uris.isEmpty()) {
+                  File dir = new File(getContext().getCacheDir(), "shared");
+                  dir.mkdirs();
+                  File[] old = dir.listFiles();
+                  if (old != null) for (File f : old) f.delete();
+                  int i = 0;
+                  for (Uri u : uris) {
+                    try {
+                      InputStream in = getContext().getContentResolver().openInputStream(u);
+                      if (in == null) continue;
+                      File out = new File(dir, "s" + System.currentTimeMillis() + "_" + (i++) + ".jpg");
+                      FileOutputStream os = new FileOutputStream(out);
+                      byte[] buf = new byte[65536];
+                      int n;
+                      while ((n = in.read(buf)) > 0) os.write(buf, 0, n);
+                      os.close();
+                      in.close();
+                      files.put(out.getAbsolutePath());
+                    } catch (Exception ignored) {}
+                  }
+                  intent.setAction(Intent.ACTION_MAIN);
+                  intent.removeExtra(Intent.EXTRA_STREAM);
+                }
+              } catch (Exception ignored) {}
+              JSObject r = new JSObject();
+              r.put("files", files);
+              call.resolve(r);
+            }
+          }
+          EOF
+          cat > $D/MainActivity.java <<'EOF'
+          package com.waleed.arshef;
+
+          import android.content.Intent;
+          import android.os.Bundle;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+            @Override
+            public void onCreate(Bundle savedInstanceState) {
+              registerPlugin(ShareInPlugin.class);
+              super.onCreate(savedInstanceState);
+            }
+
+            @Override
+            protected void onNewIntent(Intent intent) {
+              super.onNewIntent(intent);
+              setIntent(intent);
+              if (bridge != null) bridge.triggerWindowJSEvent("shareIn");
+            }
+          }
+          EOF
+          python3 - <<'PY'
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p, encoding='utf-8').read()
+          f = '''<intent-filter>
+                      <action android:name="android.intent.action.SEND" />
+                      <category android:name="android.intent.category.DEFAULT" />
+                      <data android:mimeType="image/*" />
+                  </intent-filter>
+                  <intent-filter>
+                      <action android:name="android.intent.action.SEND_MULTIPLE" />
+                      <category android:name="android.intent.category.DEFAULT" />
+                      <data android:mimeType="image/*" />
+                  </intent-filter>
+                  '''
+          assert '</activity>' in s
+          s = s.replace('</activity>', f + '</activity>', 1)
+          open(p, 'w', encoding='utf-8').write(s)
+          PY
+          cat android/app/src/main/AndroidManifest.xml
           npx cap sync android
       - name: Generate app icon
         run: |
