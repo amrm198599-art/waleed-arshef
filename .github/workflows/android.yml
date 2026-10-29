@@ -168,6 +168,15 @@ jobs:
             convert /tmp/app-icon.png -resize ${size}x${size} $RES/mipmap-$name/ic_launcher_round.png
             convert /tmp/app-icon.png -resize ${size}x${size} $RES/mipmap-$name/ic_launcher_foreground.png
           done
+      - name: Use fixed signing key and bump version (so it updates over the old app)
+        env:
+          RUN_NO: ${{ github.run_number }}
+        run: |
+          if [ ! -f debug.keystore ]; then echo "ERROR: upload debug.keystore to the repo root"; exit 1; fi
+          mkdir -p ~/.android
+          cp debug.keystore ~/.android/debug.keystore
+          sed -i -E "s/versionCode [0-9]+/versionCode $RUN_NO/" android/app/build.gradle
+          grep -n -E "versionCode|versionName|applicationId" android/app/build.gradle
       - name: Build APK
         working-directory: android
         run: |
